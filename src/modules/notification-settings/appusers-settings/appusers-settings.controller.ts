@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Logger,
   NotFoundException,
   Param,
@@ -47,6 +48,24 @@ export class AppUsersNotificationSettingsController {
       throw new BadRequestException("AppUsers settings already exists!");
     }
     const result = await this.appUsersNotificationSettingsService.create(data);
+    return result;
+  }
+
+  @Get(":user_id")
+  @ApiOperation({ summary: "Get appusers settings" })
+  @ApiResponse({
+    status: 200,
+    description: "The appusers settings has been successfully retrieved.",
+    type: Object,
+  })
+  async getAppUsersSettings(@Param("user_id") user_id: string) {
+    this.logger.log(`Get appusers settings for user: ${user_id}`);
+    const result = await this.appUsersNotificationSettingsService.findOne({
+      user_id,
+    });
+    if (!result) {
+      throw new NotFoundException("AppUsers settings not found!");
+    }
     return result;
   }
 
