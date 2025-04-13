@@ -15,6 +15,10 @@ import * as amqp from "amqplib";
  * - Bind queues to exchanges
  * - Publish messages to queues/exchanges
  * - Consume messages from queues
+ *
+ * Supports two main messaging patterns:
+ * 1. Work Queue Pattern - For distributing tasks across multiple workers
+ * 2. PubSub Pattern - For publishing messages to multiple subscribers
  */
 @Injectable()
 export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
@@ -150,45 +154,201 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Set up a consumer to process messages from a queue
+   * Get the current channel object for advanced operations
    *
-   * @param queue - Name of the queue to consume from
-   * @param callback - Function to process received messages
+   * @returns The current RabbitMQ channel
    */
-  async consumeMessage(
-    queue: string,
-    callback: (message: any) => Promise<void>,
-  ) {
+  getChannel(): amqp.Channel {
+    if (!this.channel) {
+      throw new Error("Channel not established");
+    }
+    return this.channel;
+  }
+
+  // ===== COMMON UTILITY METHODS =====
+
+  /**
+   * Create a queue with specified options
+   *
+   * @param queue - Name of the queue to create
+   * @param options - Queue configuration options
+   */
+  async createQueue(queue: string, options: amqp.Options.AssertQueue = {}) {
     if (!this.channel) {
       throw new Error("Channel not established");
     }
 
-    // Ensure the queue exists before consuming (creates it if it doesn't exist)
-    await this.channel.assertQueue(queue, { durable: true });
-    this.logger.log(`Consuming messages from queue: ${queue}`);
+    // Default to durable queues that survive broker restarts
+    const queueOptions = { durable: true, ...options };
+    await this.channel.assertQueue(queue, queueOptions);
+    this.logger.log(`Queue created: ${queue}`);
+  }
 
-    // Start consuming messages
-    await this.channel.consume(queue, async (message) => {
-      if (message) {
-        try {
-          // Parse the message content as JSON
-          const content = JSON.parse(message.content.toString());
+  /**
+   * Bind a queue to an exchange with a routing key
+   *
+   * @param queue - Name of the queue to bind
+   * @param exchange - Name of the exchange to bind to
+   * @param routingKey - The routing key pattern for message routing
+   */
+  async bindQueue(queue: string, exchange: string, routingKey: string) {
+    if (!this.channel) {
+      throw new Error("Channel not established");
+    }
 
-          // Process the message with the provided callback
-          await callback(content);
+    // Ensure the exchange exists
+    await this.channel.assertExchange(exchange, "topic", { durable: true });
 
-          // Acknowledge message after successful processing
-          this.channel.ack(message);
-        } catch (error) {
-          this.logger.error(`Error processing message: ${error.message}`);
+    // Bind the queue to the exchange with the routing key
+    await this.channel.bindQueue(queue, exchange, routingKey);
+    this.logger.log(
+      `Queue ${queue} bound to exchange ${exchange} with routing key ${routingKey}`,
+    );
+  }
 
-          // Negative acknowledgment with requeue=false for parsing/processing errors
-          // This prevents the message from being requeued if it's malformed
-          this.channel.nack(message, false, false);
+  // ===== WORK QUEUE PATTERN METHODS =====
+
+  /**
+   * Publish a task to a work queue
+   *
+   * @param queue - Name of the work queue
+   * @param task - The task data to be processed
+   * @param options - Additional publish options
+   * @returns - Boolean indicating if the task was published successfully
+   */
+  async publishTask(
+    queue: string,
+    task: any,
+    options: amqp.Options.Publish = {},
+  ): Promise<boolean> {
+    if (!this.channel) {
+      throw new Error("Channel not established");
+    }
+
+    try {
+      // Ensure the queue exists
+      await this.createQueue(queue, { durable: true });
+
+      // Convert task to buffer
+      const taskBuffer = Buffer.from(JSON.stringify(task));
+
+      // Publish the task to the queue
+      const published = this.channel.sendToQueue(queue, taskBuffer, {
+        persistent: true,
+        ...options,
+      });
+
+      if (published) {
+        this.logger.debug(`Task published to work queue: ${queue}`);
+      } else {
+        this.logger.warn(`Failed to publish task to work queue: ${queue}`);
+      }
+
+      return published;
+    } catch (error) {
+      this.logger.error(
+        `Error publishing task to work queue: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Process tasks from a work queue
+   *
+   * @param queue - Name of the work queue
+   * @param processor - Function to process each task
+   * @param options - Consumer options
+   */
+  async processTasks(
+    queue: string,
+    processor: (task: any) => Promise<void>,
+    options: amqp.Options.Consume = {},
+  ): Promise<void> {
+    if (!this.channel) {
+      throw new Error("Channel not established");
+    }
+
+    try {
+      // Ensure the queue exists
+      await this.createQueue(queue, { durable: true });
+
+      // Set prefetch to 1 to ensure fair distribution of tasks
+      await this.channel.prefetch(1);
+
+      this.logger.log(`Starting to process tasks from queue: ${queue}`);
+
+      // Start consuming tasks
+      await this.channel.consume(
+        queue,
+        async (message) => {
+          if (message) {
+            try {
+              // Parse the task data
+              const task = JSON.parse(message.content.toString());
+
+              // Process the task
+              await processor(task);
+
+              // Acknowledge the task after successful processing
+              this.channel.ack(message);
+            } catch (error) {
+              this.logger.error(`Error processing task: ${error.message}`);
+
+              // Reject the task and requeue it for retry
+              // This allows the task to be processed by another worker
+              this.channel.nack(message, false, true);
+            }
+          }
+        },
+        options,
+      );
+    } catch (error) {
+      this.logger.error(`Error setting up task processor: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Cancel task processing for a specific queue
+   *
+   * @param queue - Name of the work queue
+   * @param consumerTag - The consumer tag to cancel (optional)
+   */
+  async cancelTaskProcessing(
+    queue: string,
+    consumerTag?: string,
+  ): Promise<void> {
+    if (!this.channel) {
+      throw new Error("Channel not established");
+    }
+
+    try {
+      if (consumerTag) {
+        // Cancel specific consumer
+        await this.channel.cancel(consumerTag);
+        this.logger.log(
+          `Cancelled task processing for consumer: ${consumerTag}`,
+        );
+      } else {
+        // Get all consumers for the queue
+        const consumers = await this.channel.checkQueue(queue);
+
+        // Cancel all consumers for the queue
+        for (const consumer of consumers.consumers) {
+          await this.channel.cancel(consumer.consumerTag);
+          this.logger.log(
+            `Cancelled task processing for consumer: ${consumer.consumerTag}`,
+          );
         }
       }
-    });
+    } catch (error) {
+      this.logger.error(`Error cancelling task processing: ${error.message}`);
+      throw error;
+    }
   }
+
+  // ===== PUBSUB PATTERN METHODS =====
 
   /**
    * Publish a message to an exchange with a routing key
@@ -238,53 +398,43 @@ export class RabbitMQService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Create a queue with specified options
+   * Set up a consumer to process messages from a queue
    *
-   * @param queue - Name of the queue to create
-   * @param options - Queue configuration options
+   * @param queue - Name of the queue to consume from
+   * @param callback - Function to process received messages
    */
-  async createQueue(queue: string, options: amqp.Options.AssertQueue = {}) {
+  async consumeMessage(
+    queue: string,
+    callback: (message: any) => Promise<void>,
+  ) {
     if (!this.channel) {
       throw new Error("Channel not established");
     }
 
-    // Default to durable queues that survive broker restarts
-    const queueOptions = { durable: true, ...options };
-    await this.channel.assertQueue(queue, queueOptions);
-    this.logger.log(`Queue created: ${queue}`);
-  }
+    // Ensure the queue exists before consuming (creates it if it doesn't exist)
+    await this.channel.assertQueue(queue, { durable: true });
+    this.logger.log(`Consuming messages from queue: ${queue}`);
 
-  /**
-   * Bind a queue to an exchange with a routing key
-   *
-   * @param queue - Name of the queue to bind
-   * @param exchange - Name of the exchange to bind to
-   * @param routingKey - The routing key pattern for message routing
-   */
-  async bindQueue(queue: string, exchange: string, routingKey: string) {
-    if (!this.channel) {
-      throw new Error("Channel not established");
-    }
+    // Start consuming messages
+    await this.channel.consume(queue, async (message) => {
+      if (message) {
+        try {
+          // Parse the message content as JSON
+          const content = JSON.parse(message.content.toString());
 
-    // Ensure the exchange exists
-    await this.channel.assertExchange(exchange, "topic", { durable: true });
+          // Process the message with the provided callback
+          await callback(content);
 
-    // Bind the queue to the exchange with the routing key
-    await this.channel.bindQueue(queue, exchange, routingKey);
-    this.logger.log(
-      `Queue ${queue} bound to exchange ${exchange} with routing key ${routingKey}`,
-    );
-  }
+          // Acknowledge message after successful processing
+          this.channel.ack(message);
+        } catch (error) {
+          this.logger.error(`Error processing message: ${error.message}`);
 
-  /**
-   * Get the current channel object for advanced operations
-   *
-   * @returns The current RabbitMQ channel
-   */
-  getChannel(): amqp.Channel {
-    if (!this.channel) {
-      throw new Error("Channel not established");
-    }
-    return this.channel;
+          // Negative acknowledgment with requeue=false for parsing/processing errors
+          // This prevents the message from being requeued if it's malformed
+          this.channel.nack(message, false, false);
+        }
+      }
+    });
   }
 }
