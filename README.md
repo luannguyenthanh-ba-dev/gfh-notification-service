@@ -27,9 +27,21 @@ yarn install
 3. Set up environment variables:
 Create a `.env` file in the root directory with the following variables:
 ```env
-environment=development
-# Add other required environment variables here
+# Server Configuration
+PORT=3007
+
+# Database Configuration
+MONGODB_URI=mongodb://admin:admin_password@localhost:27017/gfh-notification-db?authSource=admin&authMechanism=SCRAM-SHA-256
+
+# RabbitMQ Configuration
+RABBITMQ_URL=amqp://admin:admin123@localhost:5672
+NOTIFICATION_QUEUE_NAME=gfh-notification-queue
+
+# API Configuration
+NOTIFICATION_SERVICE_API_KEY=gfh-notification-service-api-key
 ```
+
+Note: Make sure to replace the default values with your actual configuration values for production use.
 
 ## Project Structure
 
