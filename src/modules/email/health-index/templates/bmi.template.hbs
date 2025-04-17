@@ -1,0 +1,38 @@
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body { font-family: Arial, sans-serif; padding: 24px; background-color:
+      #f4f6f8; color: #333; } .container { max-width: 600px; margin: auto;
+      background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px
+      12px rgba(0,0,0,0.1); } .header { font-size: 20px; font-weight: bold;
+      color: #e53935; } .content { margin-top: 16px; font-size: 16px; } .footer
+      { margin-top: 24px; font-size: 13px; color: #888; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">🔔 Notification about your BMI</div>
+      <div class="content">
+        Hello
+        {{name}},<br /><br />
+        The system GFH has detected the latest BMI of your as follows:
+        <ul>
+          <li><strong>Height:</strong> {{height}} cm</li>
+          <li><strong>Weight:</strong> {{weight}} kg</li>
+          <li><strong>BMI:</strong> {{bmi}} – {{category}}</li>
+          <li><strong>Time:</strong> {{date}}</li>
+        </ul>
+        <br />
+        👉
+        <strong>Recommendation:</strong><br />
+        {{recommendation}}
+      </div>
+
+      <div class="footer">
+        GFH – The comprehensive health support application.
+        <br />You received this email because you have registered for the GFH service.
+      </div>
+    </div>
+  </body>
+</html>
