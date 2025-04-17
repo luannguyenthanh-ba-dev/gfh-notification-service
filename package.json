@@ -29,7 +29,9 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "dotenv": "^16.4.7",
+    "handlebars": "^4.7.8",
     "mongoose": "^8.13.1",
+    "nodemailer": "^6.10.1",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.2.0"
   },
@@ -54,7 +56,9 @@
     "ts-loader": "^9.2.3",
     "ts-node": "^10.0.0",
     "tsconfig-paths": "4.1.1",
-    "typescript": "^4.7.4"
+    "typescript": "^4.7.4",
+    "moment": "^2.30.1",
+    "moment-timezone": "^0.5.48"
   },
   "jest": {
     "moduleFileExtensions": [
