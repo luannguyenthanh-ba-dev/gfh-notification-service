@@ -83,6 +83,7 @@ export class AppUsersNotificationSettingsService {
       in_app_notification?: boolean;
       email_notification?: boolean;
       telegram_notification?: boolean;
+      timezone?: string;
     },
   ): Promise<IAppUsersNotificationSettings> {
     if (!Object.keys(filters).length) {
@@ -118,6 +119,9 @@ export class AppUsersNotificationSettingsService {
     }
     if (data.user_telegram_id) {
       updateData.user_telegram_id = data.user_telegram_id;
+    }
+    if (data.timezone) {
+      updateData.timezone = data.timezone;
     }
     if (!Object.keys(updateData).length) {
       throw new BadRequestException("No valid data to update");

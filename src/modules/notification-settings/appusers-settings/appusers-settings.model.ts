@@ -15,6 +15,7 @@ export const AppUsersNotificationSettingsSchema = new Schema(
     in_app_notification: { type: Boolean, default: true },
     email_notification: { type: Boolean, default: true },
     telegram_notification: { type: Boolean, default: true },
+    timezone: { type: String, default: "Asia/Ho_Chi_Minh" },
     created_at: Number,
     updated_at: Number,
     deleted_at: Number,

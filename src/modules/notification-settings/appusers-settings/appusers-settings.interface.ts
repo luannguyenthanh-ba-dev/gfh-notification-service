@@ -16,4 +16,5 @@ export interface IAppUsersNotificationSettings extends Document {
   readonly updated_at?: number;
   readonly deleted_at?: number;
   readonly is_deleted?: boolean;
+  readonly timezone?: string;
 }

@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsPhoneNumber,
   IsString,
+  IsTimeZone,
   IsUUID,
 } from "class-validator";
 import { APP_USERS_NOTIFICATION_SETTINGS_EVENTS } from "../appusers-settings.const";
@@ -90,4 +91,14 @@ export class CreateAppUsersSettingsDto {
   @IsNotEmpty()
   @IsDefined()
   telegram_notification: boolean;
+
+  @ApiProperty({
+    description: "Timezone",
+    example: "Asia/Ho_Chi_Minh",
+    required: true,
+    type: String,
+  })
+  @IsTimeZone()
+  @IsOptional()
+  timezone?: string;
 }

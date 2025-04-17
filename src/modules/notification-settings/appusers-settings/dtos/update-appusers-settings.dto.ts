@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsPhoneNumber,
   IsString,
+  IsTimeZone,
   IsUUID,
 } from "class-validator";
 
@@ -98,4 +99,14 @@ export class UpdateAppUsersSettingsDto {
   @IsBoolean()
   @IsOptional()
   telegram_notification?: boolean;
+
+  @ApiProperty({
+    description: "The timezone",
+    type: String,
+    example: "Asia/Ho_Chi_Minh",
+    required: false,
+  })
+  @IsTimeZone()
+  @IsOptional()
+  timezone?: string;
 }
