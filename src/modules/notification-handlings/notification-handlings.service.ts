@@ -131,6 +131,7 @@ export class NotificationHandlingsService implements OnModuleInit {
             bmi_category: notification.data?.bmi_category,
             height: notification.data?.height,
             weight: notification.data?.weight,
+            recommendation: notification.data?.recommendation,
             created_at: notification.data?.created_at,
           };
           await this.bmiService.handleBmiNotification(data);

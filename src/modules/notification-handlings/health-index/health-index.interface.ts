@@ -8,5 +8,6 @@ export interface IBmiUserNotification {
   bmi_category: string;
   height: number;
   weight: number;
+  recommendation: string;
   created_at: Date;
 }

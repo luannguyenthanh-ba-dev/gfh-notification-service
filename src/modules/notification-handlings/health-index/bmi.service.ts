@@ -46,7 +46,7 @@ export class BmiService {
         date: momentTz(notification.created_at)
           .tz(appUsersSettings.timezone)
           .format(),
-        recommendation: "",
+        recommendation: notification.recommendation,
       };
       this.logger.log(
         `handleBmiNotification: Sending email notification to user ${appUsersSettings.user_email}`,
