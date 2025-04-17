@@ -119,19 +119,20 @@ export class NotificationHandlingsService implements OnModuleInit {
         notification.recipients,
       )}`,
     );
-    // Implement email sending logic here
-    const data: IBmiUserNotification = {
-      user_id: notification.recipients[0].user_id,
-      event: notification.data?.event,
-      bmi_value: notification.data?.bmi_value,
-      bmi_category: notification.data?.bmi_category,
-      height: notification.data?.height,
-      weight: notification.data?.weight,
-      created_at: notification.data?.created_at,
-    };
-    if (data.event) {
-      switch (data.event) {
+    const event = notification.data?.event;
+    if (event) {
+      switch (event) {
         case APP_USERS_NOTIFICATION_SETTINGS_EVENTS.BMI_NOTIFICATION:
+          const data: IBmiUserNotification = {
+            user_id: notification.recipients[0].user_id,
+            user_name: notification.recipients[0].user_name,
+            event: notification.data?.event,
+            bmi_value: notification.data?.bmi_value,
+            bmi_category: notification.data?.bmi_category,
+            height: notification.data?.height,
+            weight: notification.data?.weight,
+            created_at: notification.data?.created_at,
+          };
           await this.bmiService.handleBmiNotification(data);
           break;
         case APP_USERS_NOTIFICATION_SETTINGS_EVENTS.BMR_NOTIFICATION:
@@ -145,7 +146,7 @@ export class NotificationHandlingsService implements OnModuleInit {
           break;
         default:
           this.logger.warn(
-            `handleUserNotification: Unknown event type: ${data.event}`,
+            `handleUserNotification: Unknown event type: ${event}`,
           );
       }
     } else {

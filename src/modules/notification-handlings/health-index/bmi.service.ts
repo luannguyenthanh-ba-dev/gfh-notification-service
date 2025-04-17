@@ -1,7 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { GeneralNotificationFormat } from "../notification-handling.interface";
 import { AppUsersNotificationSettingsService } from "src/modules/notification-settings/appusers-settings/appusers-settings.service";
 import { IBmiUserNotification } from "./health-index.interface";
+import { EmailService } from "src/modules/email/email.service";
+import * as momentTz from "moment-timezone";
+import { ServiceLogsService } from "src/modules/service-logs/logs.service";
+import {
+  LOG_FEATURES,
+  LOG_LEVELS,
+  LOG_TYPES,
+} from "src/modules/service-logs/logs.const";
 
 @Injectable()
 export class BmiService {
@@ -9,6 +16,8 @@ export class BmiService {
 
   constructor(
     private readonly appUsersNotificationSettingsService: AppUsersNotificationSettingsService,
+    private readonly emailService: EmailService,
+    private readonly serviceLogsService: ServiceLogsService,
   ) {}
 
   async handleBmiNotification(notification: IBmiUserNotification) {
@@ -28,10 +37,51 @@ export class BmiService {
     }
 
     if (appUsersSettings.email_notification) {
+      const emailData = {
+        name: notification.user_name,
+        height: notification.height,
+        weight: notification.weight,
+        bmi: notification.bmi_value,
+        category: notification.bmi_category,
+        date: momentTz(notification.created_at)
+          .tz(appUsersSettings.timezone)
+          .format(),
+        recommendation: "",
+      };
       this.logger.log(
         `handleBmiNotification: Sending email notification to user ${appUsersSettings.user_email}`,
       );
-      //   this.sendEmailNotification(notification);
+
+      const sent = await this.emailService.sendUserBMIEmail(
+        appUsersSettings.user_email,
+        emailData,
+      );
+      if (sent) {
+        this.logger.log(
+          `handleBmiNotification: Email notification sent to user ${appUsersSettings.user_email}`,
+        );
+        // Log the successful email notification
+        await this.serviceLogsService.create({
+          feature: LOG_FEATURES.BMI,
+          type: LOG_TYPES.NOTIFICATION_EMAIL,
+          level: LOG_LEVELS.INFO,
+          object_id: notification.user_id,
+          message: `Email notification sent to user ${appUsersSettings.user_email}`,
+          metadata: { ...emailData },
+        });
+      } else {
+        this.logger.error(
+          `handleBmiNotification: Failed to send email notification to user ${appUsersSettings.user_email}`,
+        );
+        await this.serviceLogsService.create({
+          feature: LOG_FEATURES.BMI,
+          type: LOG_TYPES.NOTIFICATION_EMAIL,
+          level: LOG_LEVELS.ERROR,
+          object_id: notification.user_id,
+          message: `Failed to send email notification to user ${appUsersSettings.user_email}`,
+          metadata: { ...emailData },
+        });
+      }
     }
 
     if (appUsersSettings.telegram_notification) {

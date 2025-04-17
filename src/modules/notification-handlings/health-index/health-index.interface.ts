@@ -2,6 +2,7 @@ import { APP_USERS_NOTIFICATION_SETTINGS_EVENTS } from "src/modules/notification
 
 export interface IBmiUserNotification {
   user_id: string;
+  user_name: string;
   event: APP_USERS_NOTIFICATION_SETTINGS_EVENTS;
   bmi_value: number;
   bmi_category: string;
