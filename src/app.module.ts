@@ -5,6 +5,7 @@ import { MongoDbModule } from "./database/mongodb.module";
 import { RabbitMQModule } from "./queue/rabbit-mq.module";
 import { NotificationSettingsModule } from "./modules/notification-settings/notification-settings.module";
 import { NotificationHandlingsModule } from "./modules/notification-handlings/notification-handlings.module";
+import { ServiceLogsModule } from "./modules/service-logs/logs.module";
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { NotificationHandlingsModule } from "./modules/notification-handlings/no
     RabbitMQModule,
     NotificationSettingsModule,
     NotificationHandlingsModule,
+    ServiceLogsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
