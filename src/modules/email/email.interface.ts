@@ -5,7 +5,7 @@ export interface EmailOptions {
 }
 
 export interface BMIEmailData {
-  name: string;
+  user_name: string;
   height: number;
   weight: number;
   bmi: number;

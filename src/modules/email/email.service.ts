@@ -159,7 +159,7 @@ export class EmailService {
 
       // Validate required data
       if (
-        !data.name ||
+        !data.user_name ||
         !data.height ||
         !data.weight ||
         !data.bmi ||
