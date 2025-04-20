@@ -9,6 +9,8 @@ import {
   LOG_LEVELS,
   LOG_TYPES,
 } from "src/modules/service-logs/logs.const";
+import { InAppNotificationService } from "src/modules/in-app-notification/in-app-notification.service";
+import { NOTIFICATION_TYPES } from "../notification-handling.const";
 
 @Injectable()
 export class BmiService {
@@ -18,6 +20,7 @@ export class BmiService {
     private readonly appUsersNotificationSettingsService: AppUsersNotificationSettingsService,
     private readonly emailService: EmailService,
     private readonly serviceLogsService: ServiceLogsService,
+    private readonly inAppNotificationService: InAppNotificationService,
   ) {}
 
   async handleBmiNotification(notification: IBmiUserNotification) {
@@ -38,7 +41,7 @@ export class BmiService {
 
     if (appUsersSettings.email_notification) {
       const emailData = {
-        name: notification.user_name,
+        user_name: notification.user_name,
         height: notification.height,
         weight: notification.weight,
         bmi: notification.bmi_value,
@@ -84,18 +87,36 @@ export class BmiService {
       }
     }
 
+    if (appUsersSettings.in_app_notification) {
+      this.logger.log(
+        `handleBmiNotification: Sending in-app notification to user ${appUsersSettings.user_id}`,
+      );
+      const notificationData = {
+        user_id: notification.user_id,
+        user_name: notification.user_name,
+        type: NOTIFICATION_TYPES.USER_NOTIFICATION,
+        event: notification.event,
+        data: {
+          height: notification.height,
+          weight: notification.weight,
+          bmi: notification.bmi_value,
+          category: notification.bmi_category,
+          recommendation: notification.recommendation,
+          timestamp: notification.created_at,
+        },
+      };
+      await this.inAppNotificationService.sendInAppBMINotification(
+        notificationData,
+        appUsersSettings,
+      );
+      // No need to log the in-app notification, it's handled by the in-app notification service
+    }
+
     if (appUsersSettings.telegram_notification) {
       this.logger.log(
         `handleBmiNotification: Sending telegram notification to user ${appUsersSettings.user_telegram_id}`,
       );
       //   this.sendTelegramNotification(notification);
-    }
-
-    if (appUsersSettings.in_app_notification) {
-      this.logger.log(
-        `handleBmiNotification: Sending in-app notification to user ${appUsersSettings.user_id}`,
-      );
-      //   this.sendInAppNotification(notification);
     }
   }
 }
