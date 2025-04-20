@@ -194,9 +194,9 @@ export class InAppNotificationService {
         id: result._id.toString(),
         name: notification.event,
         type: notification.type,
-        date: momentTz(result.created_at)
+        date: momentTz(notification.data?.timestamp)
           .tz(appUsersSettings.timezone)
-          .format("YYYY-MM-DD"),
+          .format("YYYY-MM-DD HH:mm:ss"),
         height: notification.data?.height,
         weight: notification.data?.weight,
         bmi: notification.data?.bmi,
