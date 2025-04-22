@@ -1,18 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsOptional, IsBoolean, IsEnum } from "class-validator";
+import { IsOptional, IsBoolean, IsEnum } from "class-validator";
 import { Transform } from "class-transformer";
 import { NOTIFICATION_TYPES } from "../../notification-handlings/notification-handling.const";
 
 export class QueryInAppNotificationDto {
-  @ApiProperty({
-    description: "User ID",
-    example: "60d6bc35f1c9a32c9c9e1a1b",
-    required: false,
-  })
-  @IsString()
-  @IsOptional()
-  userId?: string;
-
   @ApiProperty({
     description: "Read status",
     example: "true",
@@ -21,7 +12,7 @@ export class QueryInAppNotificationDto {
   @IsBoolean()
   @IsOptional()
   @Transform(({ value }) => value === "true")
-  isRead?: boolean;
+  is_read?: boolean;
 
   @ApiProperty({
     description: "Notification type",
@@ -44,20 +35,32 @@ export class QueryInAppNotificationDto {
   limit?: number = 10;
 
   @ApiProperty({
-    description: "Skip number of records",
+    description: "Page number",
     example: 0,
     required: false,
     default: 0,
   })
   @IsOptional()
   @Transform(({ value }) => parseInt(value) || 0)
-  skip?: number = 0;
+  page?: number = 0;
 
   @ApiProperty({
-    description: "Sort by created_at",
-    example: 1,
+    description: "Sort by field",
+    example: "created_at",
+    default: "created_at",
     required: false,
   })
   @IsOptional()
-  sort?: { created_at?: 1 | -1 } = { created_at: -1 };
+  sort_by?: string = "created_at";
+
+  @ApiProperty({
+    description: "Sort order",
+    example: 1,
+    required: false,
+    default: 1,
+  })
+  @Transform(({ value }) => parseInt(value))
+  @IsOptional()
+  @IsEnum([1, -1])
+  sort_order?: 1 | -1 = 1;
 }

@@ -9,7 +9,10 @@ import {
   Put,
   HttpStatus,
   HttpCode,
+  UseGuards,
+  NotFoundException,
 } from "@nestjs/common";
+import { AuthGuard } from "src/modules/auth/guards/auth.guard";
 import {
   ApiTags,
   ApiOperation,
@@ -19,65 +22,93 @@ import {
 import { InAppNotificationService } from "./in-app-notification.service";
 import { QueryInAppNotificationDto } from "./dto/query-in-app-notification.dto";
 
-@ApiTags("in-app-notifications")
+@ApiTags("In App Notifications")
 @ApiBearerAuth()
-@Controller("in-app-notifications")
+@Controller("v1/in-app-notifications")
+@UseGuards(AuthGuard)
 export class InAppNotificationController {
   constructor(
     private readonly inAppNotificationService: InAppNotificationService,
   ) {}
 
-  @Get("user/:userId")
+  @Get("users/:user_id")
   @ApiOperation({ summary: "Get all notifications for a specific user" })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "User notifications retrieved successfully",
   })
-  findAllForUser(
-    @Param("userId") userId: string,
+  getUserNotifications(
+    @Param("user_id") user_id: string,
     @Query() query: QueryInAppNotificationDto,
   ) {
-    return this.inAppNotificationService.findMany(query);
+    console.log(query);
+    return this.inAppNotificationService.paginate({
+      user_id,
+      ...query,
+    });
   }
 
-  @Get("user/:userId/count-unread")
+  @Get("users/:user_id/count-unreads")
   @ApiOperation({ summary: "Count unread notifications for a specific user" })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Unread count retrieved successfully",
   })
-  countUnreadForUser(@Param("userId") userId: string) {
-    return this.inAppNotificationService.countUnreadForUser(userId);
+  async countUserUnreadNotifications(@Param("user_id") user_id: string) {
+    const result = await this.inAppNotificationService.countUnreadForUser(
+      user_id,
+    );
+    return result;
   }
 
-  @Put(":id/mark-as-read")
+  @Put(":_id/mark-as-reads")
   @ApiOperation({ summary: "Mark a notification as read" })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Notification marked as read successfully",
   })
-  markAsRead(@Param("id") id: string) {
-    return this.inAppNotificationService.markAsRead(id);
+  async markAsRead(@Param("_id") _id: string) {
+    const notification = await this.inAppNotificationService.findOne({
+      _id,
+      is_deleted: false,
+    });
+    if (!notification) {
+      throw new NotFoundException("Notification not found");
+    }
+    const result = await this.inAppNotificationService.markAsRead(_id);
+    return result;
   }
 
-  @Put("user/:userId/mark-all-as-read")
+  @Put("users/:user_id/mark-all-as-reads")
   @ApiOperation({ summary: "Mark all notifications as read for a user" })
   @ApiResponse({
     status: HttpStatus.NO_CONTENT,
     description: "All notifications marked as read",
   })
   @HttpCode(HttpStatus.NO_CONTENT)
-  markAllAsRead(@Param("userId") userId: string) {
-    return this.inAppNotificationService.markAllAsRead(userId);
+  async markAllUserNotificationsAsRead(@Param("user_id") user_id: string) {
+    const result =
+      await this.inAppNotificationService.markAllUserNotificationsAsRead(
+        user_id,
+      );
+    return result;
   }
 
-  @Delete(":id")
+  @Delete(":_id")
   @ApiOperation({ summary: "Delete a notification (soft delete)" })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Notification deleted successfully",
   })
-  softDelete(@Param("id") id: string) {
-    return this.inAppNotificationService.softDelete(id);
+  async softDelete(@Param("_id") _id: string) {
+    const notification = await this.inAppNotificationService.findOne({
+      _id,
+      is_deleted: false,
+    });
+    if (!notification) {
+      throw new NotFoundException("Notification not found");
+    }
+    const result = await this.inAppNotificationService.softDelete(_id);
+    return result;
   }
 }

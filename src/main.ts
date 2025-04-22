@@ -38,7 +38,12 @@ async function bootstrap() {
 
   // Use this pipe for handle validation input error at DTO - If not have custom pipe
   app.enableCors({});
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+    })
+  );
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("api-docs", app, document);

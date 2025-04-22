@@ -2,7 +2,6 @@ import {
   Injectable,
   Logger,
   InternalServerErrorException,
-  NotFoundException,
   BadRequestException,
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
@@ -41,9 +40,12 @@ export class InAppNotificationService {
     }
   }
 
-  async findMany(
-    filters: IInAppNotificationFilters,
-  ): Promise<IInAppNotification[]> {
+  async paginate(filters: IInAppNotificationFilters): Promise<{
+    data: IInAppNotification[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     try {
       const query: any = {};
 
@@ -59,15 +61,26 @@ export class InAppNotificationService {
         query.type = filters.type;
       }
 
-      const skip = filters.skip || 0;
+      const skip = (filters.page - 1) * filters.limit || 0;
       const limit = filters.limit || 10;
 
-      return this.model
-        .find(query)
-        .sort({ created_at: filters?.sort?.created_at || -1 })
-        .skip(skip)
-        .limit(limit)
-        .exec();
+      const sort: any = {};
+      if (filters.sort_by && filters.sort_order) {
+        sort[filters.sort_by] = filters.sort_order;
+      } else {
+        sort["created_at"] = -1;
+      }
+
+      const [data, total] = await Promise.all([
+        this.model.find(query).sort(sort).skip(skip).limit(limit).exec(),
+        this.model.countDocuments(query),
+      ]);
+      return {
+        data,
+        total,
+        page: filters.page,
+        limit,
+      };
     } catch (error) {
       this.logger.error(
         `Error finding in-app notifications: ${error.message}`,
@@ -77,13 +90,44 @@ export class InAppNotificationService {
     }
   }
 
-  async countUnreadForUser(userId: string): Promise<number> {
+  async findMany(
+    filters: IInAppNotificationFilters,
+  ): Promise<IInAppNotification[]> {
     try {
-      return this.model.countDocuments({
-        user_id: userId,
+      const query: any = {};
+
+      if (filters.user_id) {
+        query.user_id = filters.user_id;
+      }
+      if (filters.is_read !== undefined) {
+        query.is_read = filters.is_read;
+      }
+      if (filters.type) {
+        query.type = filters.type;
+      }
+      if (filters.is_deleted !== undefined) {
+        query.is_deleted = filters.is_deleted;
+      }
+
+      const result = await this.model.find(query);
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Error finding in-app notifications: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async countUnreadForUser(user_id: string): Promise<number> {
+    try {
+      const result = await this.model.countDocuments({
+        user_id,
         is_read: false,
         is_deleted: false,
       });
+      return result;
     } catch (error) {
       this.logger.error(
         `Error counting unread notifications: ${error.message}`,
@@ -93,15 +137,42 @@ export class InAppNotificationService {
     }
   }
 
-  async markAsRead(id: string): Promise<any> {
+  async findOne(
+    filters: IInAppNotificationFilters,
+  ): Promise<IInAppNotification> {
     try {
-      const notification = await this.model.findById(id);
+      const query: any = {};
 
-      if (!notification) {
-        throw new NotFoundException("Notification not found");
+      if (filters.user_id) {
+        query.user_id = filters.user_id;
       }
+      if (filters._id) {
+        query._id = filters._id;
+      }
+      if (filters.is_read !== undefined) {
+        query.is_read = filters.is_read;
+      }
+      if (filters.type) {
+        query.type = filters.type;
+      }
+      if (filters.is_deleted !== undefined) {
+        query.is_deleted = filters.is_deleted;
+      }
+      const result = await this.model.findOne(query);
+      return result;
+    } catch (error) {
+      this.logger.error(
+        `Error finding in-app notification: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(error.message);
+    }
+  }
+
+  async markAsRead(_id: string): Promise<any> {
+    try {
       const result = await this.model.updateOne(
-        { _id: id },
+        { _id, is_read: false, is_deleted: false },
         { $set: { is_read: true, read_at: new Date() } },
       );
       return result;
@@ -114,12 +185,16 @@ export class InAppNotificationService {
     }
   }
 
-  async markAllAsRead(userId: string): Promise<void> {
+  async markAllUserNotificationsAsRead(user_id: string): Promise<boolean> {
     try {
-      await this.model.updateMany(
-        { user_id: userId, is_read: false, is_deleted: false },
-        { is_read: true, read_at: new Date() },
+      const result = await this.model.updateMany(
+        { user_id, is_read: false, is_deleted: false },
+        { $set: { is_read: true, read_at: new Date() } },
       );
+      if (result.modifiedCount > 0) {
+        return true;
+      }
+      return false;
     } catch (error) {
       this.logger.error(
         `Error marking all notifications as read: ${error.message}`,
@@ -131,12 +206,6 @@ export class InAppNotificationService {
 
   async softDelete(id: string): Promise<any> {
     try {
-      const notification = await this.model.findById(id);
-
-      if (!notification) {
-        throw new NotFoundException("Notification not found");
-      }
-
       const result = await this.model.updateOne(
         { _id: id },
         { $set: { is_deleted: true } },

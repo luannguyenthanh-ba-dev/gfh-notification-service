@@ -17,14 +17,15 @@ export interface IInAppNotification extends Document {
 }
 
 export interface IInAppNotificationFilters {
+  _id?: string | Types.ObjectId;
+  is_deleted?: boolean;
   user_id?: string;
   is_read?: boolean;
   type?: NOTIFICATION_TYPES;
-  skip?: number;
+  page?: number;
   limit?: number;
-  sort?: {
-    created_at?: 1 | -1;
-  };
+  sort_by?: string;
+  sort_order?: 1 | -1;
 }
 
 export type BMICategory =
