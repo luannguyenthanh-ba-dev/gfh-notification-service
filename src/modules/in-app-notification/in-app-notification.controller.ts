@@ -41,10 +41,10 @@ export class InAppNotificationController {
     @Param("user_id") user_id: string,
     @Query() query: QueryInAppNotificationDto,
   ) {
-    console.log(query);
     return this.inAppNotificationService.paginate({
       user_id,
       ...query,
+      is_deleted: false,
     });
   }
 
@@ -61,14 +61,18 @@ export class InAppNotificationController {
     return result;
   }
 
-  @Put(":_id/mark-as-reads")
+  @Put("users/:user_id/mark-as-reads/:_id")
   @ApiOperation({ summary: "Mark a notification as read" })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Notification marked as read successfully",
   })
-  async markAsRead(@Param("_id") _id: string) {
+  async markAsRead(
+    @Param("user_id") user_id: string,
+    @Param("_id") _id: string,
+  ) {
     const notification = await this.inAppNotificationService.findOne({
+      user_id,
       _id,
       is_deleted: false,
     });
@@ -82,10 +86,9 @@ export class InAppNotificationController {
   @Put("users/:user_id/mark-all-as-reads")
   @ApiOperation({ summary: "Mark all notifications as read for a user" })
   @ApiResponse({
-    status: HttpStatus.NO_CONTENT,
+    status: HttpStatus.OK,
     description: "All notifications marked as read",
   })
-  @HttpCode(HttpStatus.NO_CONTENT)
   async markAllUserNotificationsAsRead(@Param("user_id") user_id: string) {
     const result =
       await this.inAppNotificationService.markAllUserNotificationsAsRead(
@@ -94,15 +97,19 @@ export class InAppNotificationController {
     return result;
   }
 
-  @Delete(":_id")
+  @Delete("users/:user_id/:_id")
   @ApiOperation({ summary: "Delete a notification (soft delete)" })
   @ApiResponse({
     status: HttpStatus.OK,
     description: "Notification deleted successfully",
   })
-  async softDelete(@Param("_id") _id: string) {
+  async softDelete(
+    @Param("user_id") user_id: string,
+    @Param("_id") _id: string,
+  ) {
     const notification = await this.inAppNotificationService.findOne({
       _id,
+      user_id,
       is_deleted: false,
     });
     if (!notification) {

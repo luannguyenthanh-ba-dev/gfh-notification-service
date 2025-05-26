@@ -11,7 +11,7 @@ export class QueryInAppNotificationDto {
   })
   @IsBoolean()
   @IsOptional()
-  @Transform(({ value }) => value === "true")
+  @Transform(({ value }) => value === "true" || value === true)
   is_read?: boolean;
 
   @ApiProperty({

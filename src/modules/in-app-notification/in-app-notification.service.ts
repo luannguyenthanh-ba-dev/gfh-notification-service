@@ -61,6 +61,10 @@ export class InAppNotificationService {
         query.type = filters.type;
       }
 
+      if (filters.is_deleted !== undefined) {
+        query.is_deleted = filters.is_deleted;
+      }
+
       const skip = (filters.page - 1) * filters.limit || 0;
       const limit = filters.limit || 10;
 
@@ -175,7 +179,16 @@ export class InAppNotificationService {
         { _id, is_read: false, is_deleted: false },
         { $set: { is_read: true, read_at: new Date() } },
       );
-      return result;
+      if (result.modifiedCount > 0) {
+        return {
+          success: true,
+          message: "Notification marked as read",
+        };
+      }
+      return {
+        success: false,
+        message: "Notification not found",
+      };
     } catch (error) {
       this.logger.error(
         `Error marking notification as read: ${error.message}`,
@@ -185,16 +198,22 @@ export class InAppNotificationService {
     }
   }
 
-  async markAllUserNotificationsAsRead(user_id: string): Promise<boolean> {
+  async markAllUserNotificationsAsRead(user_id: string): Promise<object> {
     try {
       const result = await this.model.updateMany(
         { user_id, is_read: false, is_deleted: false },
         { $set: { is_read: true, read_at: new Date() } },
       );
       if (result.modifiedCount > 0) {
-        return true;
+        return {
+          success: true,
+          message: "All notifications marked as read",
+        };
       }
-      return false;
+      return {
+        success: false,
+        message: "No notifications found",
+      };
     } catch (error) {
       this.logger.error(
         `Error marking all notifications as read: ${error.message}`,
@@ -210,7 +229,10 @@ export class InAppNotificationService {
         { _id: id },
         { $set: { is_deleted: true } },
       );
-      return result;
+      if (result.modifiedCount > 0) {
+        return true;
+      }
+      return false;
     } catch (error) {
       this.logger.error(
         `Error deleting notification: ${error.message}`,
